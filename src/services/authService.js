@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const User = require('../models/User');
 
 const isValidEmail = (email) => {
+  if (typeof email !== 'string') return false;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
@@ -77,6 +78,13 @@ const login = async (email, password) => {
   if (!isMatch) {
     const err = new Error('Credenciais inválidas');
     err.status = 401;
+    throw err;
+  }
+
+  if (!process.env.JWT_SECRET) {
+    console.error("JWT_SECRET não está definido!");
+    const err = new Error('Erro de configuração interna do servidor.');
+    err.status = 500;
     throw err;
   }
 

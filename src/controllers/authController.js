@@ -6,7 +6,8 @@ const register = async (req, res) => {
     const result = await authService.register(name, email, password);
     res.status(201).json(result);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    const statusCode = error.status || 400;
+    res.status(statusCode).json({ error: error.message });
   }
 };
 
@@ -16,12 +17,13 @@ const login = async (req, res) => {
     const result = await authService.login(email, password);
     res.status(200).json(result);
   } catch (error) {
-    res.status(401).json({ error: error.message });
+    const statusCode = error.status || 401;
+    res.status(statusCode).json({ error: error.message });
   }
 };
 
 const protectedRoute = (req, res) => {
-  res.status(200).json({ message: 'Acesso autorizado' });
+  res.status(200).json({ message: 'Acesso autorizado', userId: req.user.id });
 };
 
 module.exports = { register, login, protectedRoute };
