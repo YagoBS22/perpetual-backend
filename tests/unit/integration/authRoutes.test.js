@@ -21,11 +21,7 @@ describe('Auth Routes Integration Tests', () => {
     it('deve registrar um novo usuário com sucesso e retornar 201', async () => {
       authService.register.mockResolvedValue({ message: 'Usuário registrado com sucesso' });
 
-      const userData = {
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'password123',
-      };
+      const userData = {"email": "test@example.com", "name": "Test User", "password": "password123"};
 
       const response = await request(app)
         .post('/auth/register')
@@ -50,10 +46,7 @@ describe('Auth Routes Integration Tests', () => {
 
   describe('POST /auth/login', () => {
     it('deve retornar token válido com status 200', async () => {
-      const loginData = {
-        email: 'test@example.com',
-        password: 'password123',
-      };
+      const loginData = {"email": "test@example.com", "password": "password123"};
 
       authService.login.mockResolvedValue({ token: 'fakeToken123' });
 
