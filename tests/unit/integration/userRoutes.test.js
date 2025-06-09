@@ -21,35 +21,35 @@ describe('User MovieList Routes (Integration)', () => {
     jest.clearAllMocks();
     process.env.JWT_SECRET = 'testsecret';
 
-    // Mock do jwt.verify para simular autenticação bem-sucedida
+    // Simula verificação de JWT bem-sucedida
     jwt.verify.mockImplementation((token, secret) => {
       if (token === MOCK_VALID_TOKEN && secret === process.env.JWT_SECRET) {
-        return { id: MOCK_USER_ID }; // payload decodificado
+        return { id: MOCK_USER_ID };
       }
       throw new Error('Invalid token');
     });
 
-    // Lista de filmes associada ao usuário
+    // Lista de filmes do usuário
     mockUserMovieList = [
       { tmdbId: 1, favorite: true, rating: 5, _id: 'movie1' },
       { tmdbId: 2, favorite: false, rating: 4, _id: 'movie2' },
     ];
 
-    // Mock da instância do usuário retornado do banco
+    // Instância mockada de um usuário
     mockUserInstance = {
       _id: MOCK_USER_ID,
       name: 'Mock User',
       email: 'mock@example.com',
       movieList: [...mockUserMovieList],
       createdAt: new Date().toISOString(),
-      save: jest.fn().mockResolvedValueThis(),
-      select: jest.fn().mockReturnThis(),
+      save: jest.fn().mockResolvedValue(mockUserInstance),
+      select: jest.fn().mockReturnThis(), // usado se for chamado .select().save()
     };
 
-    // Mock global de User.findById que cobre .select() e .save()
+    // Mock do User.findById
     User.findById = jest.fn().mockReturnValue({
       select: jest.fn().mockResolvedValue(mockUserInstance),
-      then: jest.fn((cb) => cb(mockUserInstance)), // para chamadas sem select
+      then: jest.fn((cb) => cb(mockUserInstance)), // fallback para chamadas .then()
     });
   });
 
@@ -71,7 +71,9 @@ describe('User MovieList Routes (Integration)', () => {
     });
 
     it('deve retornar 401 sem token', async () => {
-      jwt.verify.mockImplementation(() => { throw new Error('jwt verify error'); });
+      jwt.verify.mockImplementation(() => {
+        throw new Error('jwt verify error');
+      });
 
       const res = await request(app)
         .post('/api/user/movies')
