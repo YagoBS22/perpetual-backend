@@ -3,7 +3,7 @@ const express = require('express');
 const authRoutes = require('../../../src/routes/authRoutes');
 const authService = require('../../../src/services/authService');
 // Importa o app real para testar a rota protegida com o middleware real
-const appInstance = require('../../../src/index'); // Assumindo que src/index.js exporta o app
+const appInstance = require('../../../src/app');
 const jwt = require('jsonwebtoken'); // Para mockar jwt.verify na rota protegida
 
 jest.mock('../../../src/services/authService');
