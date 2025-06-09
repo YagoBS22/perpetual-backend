@@ -67,7 +67,7 @@ exports.deleteMovie = async (req, res) => {
   try {
     const deleted = await movieService.deleteByIdAndUser(req.params.id, req.user.id);
     if (!deleted) {
-      return res.status(404).json({ error: 'Filme não encontrado ou não pertence ao usuário para deletar' });
+      return res.status(404).json({ error: 'Filme não encontrado ou não pertence ao usuário' });
     }
     res.json({ message: 'Filme excluído com sucesso' });
   } catch (err) {

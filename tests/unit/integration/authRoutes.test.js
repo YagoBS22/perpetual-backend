@@ -82,10 +82,7 @@ describe('Auth Routes Integration Tests', () => {
       const res = await request(appInstance)
         .get('/auth/protected');
       expect(res.statusCode).toBe(401);
-      // Corrija para a mensagem padronizada do seu middleware:
-      expect(res.body).toHaveProperty('error');
-      // Se possível, confira se a mensagem é igual à esperada:
-      // expect(res.body.error).toBe('Token não fornecido');
+      expect(res.body).toHaveProperty('error', 'Token não fornecido');
     });
 
     it('deve retornar 401 para um token inválido (jwt.verify lança erro)', async () => {
@@ -97,10 +94,7 @@ describe('Auth Routes Integration Tests', () => {
         .get('/auth/protected')
         .set('Authorization', 'Bearer invalidtoken');
       expect(res.statusCode).toBe(401);
-      // Corrija para a mensagem padronizada do seu middleware:
-      expect(res.body).toHaveProperty('error');
-      // Se possível, confira se a mensagem é igual à esperada:
-      // expect(res.body.error).toBe('Token inválido');
+      expect(res.body).toHaveProperty('error', 'Token inválido');
     });
   });
 });

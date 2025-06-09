@@ -53,7 +53,7 @@ const addOrUpdateMovie = async (req, res) => {
   } catch (error) {
     console.error("Erro ao adicionar/atualizar filme na lista do usuário:", error);
     // Removido ponto final para alinhar com o esperado pelo teste (caso seu teste valide o texto literal)
-    res.status(500).json({ error: 'Erro interno do servidor ao processar a solicitação de filme do usuário' });
+    res.status(500).json({ error: 'Erro interno do servidor ao processar a solicitação de filme.' });
   }
 };
 
