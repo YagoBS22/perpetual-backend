@@ -59,11 +59,31 @@ describe('UserController Unit Tests', () => {
       expect(mockResponse.json).toHaveBeenCalledWith(expect.objectContaining(mockRequest.body));
     });
 
-    it('deve retornar 400 se tmdbId não for fornecido', async () => {
+ it('deve retornar 400 se tmdbId ou media_type não forem fornecidos', async () => {
+      // Faltando ambos
       mockRequest.body = { favorite: true };
       await userController.addOrUpdateMovie(mockRequest, mockResponse);
       expect(mockResponse.status).toHaveBeenCalledWith(400);
       expect(mockResponse.json).toHaveBeenCalledWith({ error: 'tmdbId e media_type são obrigatórios' });
+
+      // Faltando só tmdbId
+      mockRequest.body = { favorite: true, media_type: 'movie' };
+      await userController.addOrUpdateMovie(mockRequest, mockResponse);
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'tmdbId e media_type são obrigatórios' });
+
+      // Faltando só media_type
+      mockRequest.body = { favorite: true, tmdbId: 1 };
+      await userController.addOrUpdateMovie(mockRequest, mockResponse);
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'tmdbId e media_type são obrigatórios' });
+    });
+
+    it('deve retornar 400 se media_type for inválido', async () => {
+      mockRequest.body = { tmdbId: 1, favorite: true, media_type: 'invalid' };
+      await userController.addOrUpdateMovie(mockRequest, mockResponse);
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'media_type inválido. Deve ser "movie" ou "tv".' });
     });
 
     it('deve retornar 404 se o usuário não for encontrado', async () => {
