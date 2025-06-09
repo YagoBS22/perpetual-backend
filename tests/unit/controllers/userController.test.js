@@ -63,7 +63,7 @@ describe('UserController Unit Tests', () => {
       mockRequest.body = { favorite: true };
       await userController.addOrUpdateMovie(mockRequest, mockResponse);
       expect(mockResponse.status).toHaveBeenCalledWith(400);
-      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'tmdbId é obrigatório' });
+      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'tmdbId e media_type são obrigatórios' });
     });
 
     it('deve retornar 404 se o usuário não for encontrado', async () => {
