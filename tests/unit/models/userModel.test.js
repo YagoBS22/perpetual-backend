@@ -91,19 +91,21 @@ describe('User Model', () => {
     it('deve adicionar um filme à movieList com sucesso', async () => {
         const userData = { name: 'Movie List User', email: 'movielist@example.com', password: 'password123' };
         const user = new User(userData);
-        user.movieList.push({ tmdbId: 123, favorite: true, rating: 9 });
+        // Adicione o campo 'media_type' obrigatório!
+        user.movieList.push({ tmdbId: 123, media_type: 'movie', favorite: true, rating: 9 });
         const savedUser = await user.save();
 
         expect(savedUser.movieList).toHaveLength(1);
         expect(savedUser.movieList[0].tmdbId).toBe(123);
+        expect(savedUser.movieList[0].media_type).toBe('movie');
         expect(savedUser.movieList[0].favorite).toBe(true);
         expect(savedUser.movieList[0].rating).toBe(9);
     });
 
-    it('deve requerer tmdbId para itens na movieList', async () => {
+    it('deve requerer tmdbId e media_type para itens na movieList', async () => {
         const userData = { name: 'Movie List User 2', email: 'movielist2@example.com', password: 'password123' };
         const user = new User(userData);
-        // Tenta adicionar sem tmdbId
+        // Tenta adicionar sem tmdbId e sem media_type
         user.movieList.push({ favorite: true });
         let err;
         try {
@@ -113,11 +115,14 @@ describe('User Model', () => {
         }
         expect(err).toBeInstanceOf(mongoose.Error.ValidationError);
         expect(err.errors['movieList.0.tmdbId']).toBeDefined();
+        expect(err.errors['movieList.0.media_type']).toBeDefined();
     });
-     it('deve usar valor default para favorite (false) se não fornecido', async () => {
+
+    it('deve usar valor default para favorite (false) se não fornecido', async () => {
         const userData = { name: 'Movie List User 3', email: 'movielist3@example.com', password: 'password123' };
         const user = new User(userData);
-        user.movieList.push({ tmdbId: 789 }); // favorite não fornecido
+        // Adicione 'media_type' para passar na validação
+        user.movieList.push({ tmdbId: 789, media_type: 'movie' }); // favorite não fornecido
         const savedUser = await user.save();
         expect(savedUser.movieList[0].favorite).toBe(false);
     });

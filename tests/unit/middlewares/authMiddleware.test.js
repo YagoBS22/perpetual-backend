@@ -31,7 +31,10 @@ describe('Auth Middleware', () => {
 
   it('deve chamar next() com req.user se o token for válido', () => {
     mockRequest.headers.authorization = 'Bearer validtoken123';
-    const decodedPayload = { id: 'userId', email: 'test@example.com' };
+    const decodedPayload = {
+        "email": "test@example.com",
+        "id": "userId",
+      }
     jwt.verify.mockReturnValue(decodedPayload);
 
     authMiddleware(mockRequest, mockResponse, nextFunction);

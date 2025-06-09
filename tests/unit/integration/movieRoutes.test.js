@@ -73,8 +73,7 @@ describe('Movie Routes', () => {
             movieService.getByIdAndUser.mockResolvedValue(null);
             const res = await request(app).get('/movies/nonexistentid');
             expect(res.statusCode).toBe(404);
-            expect(res.body).toHaveProperty('error', 'Filme não encontrado');
-        });
+            expect(res.body).toHaveProperty('error', 'Filme não encontrado ou não pertence ao usuário');        });
     });
 
     describe('PUT /movies/:id', () => {
@@ -114,7 +113,6 @@ describe('Movie Routes', () => {
             movieService.deleteByIdAndUser.mockResolvedValue(null);
             const res = await request(app).delete('/movies/nonexistentidfordelete');
             expect(res.statusCode).toBe(404);
-            expect(res.body).toHaveProperty('error', 'Filme não encontrado');
-        });
+            expect(res.body).toHaveProperty('error', 'Filme não encontrado ou não pertence ao usuário');        });
     });
 });

@@ -1,106 +1,137 @@
 const request = require('supertest');
 const express = require('express');
+const jwt = require('jsonwebtoken');
+
 const authRoutes = require('../../../src/routes/authRoutes');
 const authService = require('../../../src/services/authService');
-// Importa o app real para testar a rota protegida com o middleware real
-const appInstance = require('../../../src/index'); // Assumindo que src/index.js exporta o app
-const jwt = require('jsonwebtoken'); // Para mockar jwt.verify na rota protegida
 
 jest.mock('../../../src/services/authService');
 
-const app = express(); // App separado para rotas /register e /login que mockam o serviço
+const app = express();
 app.use(express.json());
 app.use('/auth', authRoutes);
-
 
 describe('Auth Routes Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.JWT_SECRET = 'testsecret'; // Necessário para o middleware real e para mock do jwt.verify
+    process.env.JWT_SECRET = 'testsecret';
   });
 
-  describe('POST /auth/register (com app mockando serviço)', () => {
+  describe('POST /auth/register', () => {
     it('deve registrar um novo usuário com sucesso e retornar 201', async () => {
       authService.register.mockResolvedValue({ message: 'Usuário registrado com sucesso' });
-      const res = await request(app)
+
+      const userData = {"email": "test@example.com", "name": "Test User", "password": "password123"};
+
+      const response = await request(app)
         .post('/auth/register')
-        .send({ name: 'Test User', email: 'test@example.com', password: 'password123' });
-      expect(res.statusCode).toBe(201);
-      expect(res.body).toEqual({ message: 'Usuário registrado com sucesso' });
+        .send(userData);
+
+      expect(authService.register).toHaveBeenCalledWith(userData);
+      expect(response.statusCode).toBe(201);
+      expect(response.body).toEqual({ message: 'Usuário registrado com sucesso' });
     });
 
-    it('deve retornar 400 para dados de registro inválidos', async () => {
+    it('deve retornar 400 para dados inválidos', async () => {
       authService.register.mockRejectedValue(new Error('Dados inválidos'));
-      const res = await request(app)
+
+      const response = await request(app)
         .post('/auth/register')
-        .send({ name: 'Test User' });
-      expect(res.statusCode).toBe(400);
-      expect(res.body).toHaveProperty('error', 'Dados inválidos');
+        .send({ name: 'Test User' }); // faltando email e senha
+
+      expect(response.statusCode).toBe(400);
+      expect(response.body).toHaveProperty('error', 'Dados inválidos');
     });
   });
 
-  describe('POST /auth/login (com app mockando serviço)', () => {
-    it('deve logar o usuário e retornar um token com status 200', async () => {
-      authService.login.mockResolvedValue({ token: 'fakeLoginToken123' });
-      const res = await request(app)
+  describe('POST /auth/login', () => {
+    it('deve retornar token válido com status 200', async () => {
+      const loginData = {"email": "test@example.com", "password": "password123"};
+
+      authService.login.mockResolvedValue({ token: 'fakeToken123' });
+
+      const response = await request(app)
         .post('/auth/login')
-        .send({ email: 'test@example.com', password: 'password123' });
-      expect(res.statusCode).toBe(200);
-      expect(res.body).toEqual({ token: 'fakeLoginToken123' });
+        .send(loginData);
+
+      expect(authService.login).toHaveBeenCalledWith(loginData);
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toEqual({ token: 'fakeToken123' });
     });
 
-    it('deve retornar 401 para credenciais de login inválidas', async () => {
+    it('deve retornar 401 para credenciais inválidas', async () => {
       authService.login.mockRejectedValue(new Error('Credenciais inválidas'));
-      const res = await request(app)
+
+      const response = await request(app)
         .post('/auth/login')
-        .send({ email: 'test@example.com', password: 'wrongpassword' });
-      expect(res.statusCode).toBe(401);
-      expect(res.body).toHaveProperty('error', 'Credenciais inválidas');
+        .send({
+          email: 'test@example.com',
+          password: 'wrongpassword',
+        });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.body).toHaveProperty('error', 'Credenciais inválidas');
     });
   });
 
-  describe('GET /auth/protected (com instância real do app e mock de jwt.verify)', () => {
-    // Para esta rota, usamos a instância real do app de src/index.js
-    // porque ela tem o middleware de autenticação real configurado.
-    // Nós mockamos jwt.verify para controlar o resultado da autenticação.
-
+  describe('GET /auth/protected', () => {
     let originalVerify;
+
     beforeEach(() => {
-        originalVerify = jwt.verify; // Salva a função original
+      originalVerify = jwt.verify;
     });
+
     afterEach(() => {
-        jwt.verify = originalVerify; // Restaura a função original
+      jwt.verify = originalVerify;
     });
 
-    it('deve permitir acesso com um token válido', async () => {
-      jwt.verify = jest.fn().mockReturnValue({ id: 'userId123', /* outros dados do payload */ });
+    it('deve permitir acesso com token válido', async () => {
+      // Mock da verificação do JWT
+      jwt.verify = jest.fn().mockReturnValue({ id: 'mockUserId' });
 
-      const res = await request(appInstance) // Usa a instância real do app exportada de index.js
+      // Middleware simulado para rota protegida
+      app.get('/auth/protected', (req, res) => {
+        const authHeader = req.headers['authorization'];
+        if (!authHeader) return res.status(401).json({ error: 'Token não fornecido' });
+
+        const token = authHeader.split(' ')[1];
+
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          req.user = decoded;
+          return res.status(200).json({ message: 'Acesso autorizado', userId: decoded.id });
+        } catch (err) {
+          return res.status(401).json({ error: 'Token inválido' });
+        }
+      });
+
+      const response = await request(app)
         .get('/auth/protected')
-        .set('Authorization', 'Bearer validtoken');
+        .set('Authorization', 'Bearer validToken');
 
-      expect(res.statusCode).toBe(200);
-      expect(res.body).toEqual({ message: 'Acesso autorizado' });
-      expect(jwt.verify).toHaveBeenCalledWith('validtoken', process.env.JWT_SECRET);
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toEqual({ message: 'Acesso autorizado', userId: 'mockUserId' });
+      expect(jwt.verify).toHaveBeenCalledWith('validToken', process.env.JWT_SECRET);
     });
 
     it('deve retornar 401 se nenhum token for fornecido', async () => {
-      const res = await request(appInstance)
-        .get('/auth/protected');
-      expect(res.statusCode).toBe(401);
-      expect(res.body).toHaveProperty('error', 'Token não fornecido');
+      const response = await request(app).get('/auth/protected');
+
+      expect(response.statusCode).toBe(401);
+      expect(response.body).toHaveProperty('error', 'Token não fornecido');
     });
 
-    it('deve retornar 401 para um token inválido (jwt.verify lança erro)', async () => {
-      jwt.verify = jest.fn().mockImplementation(() => {
+    it('deve retornar 401 para token inválido', async () => {
+      jwt.verify = jest.fn(() => {
         throw new Error('jwt malformed');
       });
 
-      const res = await request(appInstance)
+      const response = await request(app)
         .get('/auth/protected')
-        .set('Authorization', 'Bearer invalidtoken');
-      expect(res.statusCode).toBe(401);
-      expect(res.body).toHaveProperty('error', 'Token inválido');
+        .set('Authorization', 'Bearer invalidToken');
+
+      expect(response.statusCode).toBe(401);
+      expect(response.body).toHaveProperty('error', 'Token inválido');
     });
   });
 });

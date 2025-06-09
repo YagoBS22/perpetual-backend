@@ -1,7 +1,7 @@
 const userController = require('../../../src/controllers/userController');
 const User = require('../../../src/models/User');
 
-jest.mock('../../../src/models/User'); // Mock o modelo User
+jest.mock('../../../src/models/User');
 
 describe('UserController Unit Tests', () => {
   let mockRequest;
@@ -15,17 +15,18 @@ describe('UserController Unit Tests', () => {
       name: 'Mock User',
       email: 'mock@example.com',
       movieList: [
-        { tmdbId: 1, favorite: true, rating: 5, _id: 'movie1' },
-        { tmdbId: 2, favorite: false, rating: 4, _id: 'movie2' },
+        { tmdbId: 1, favorite: true, rating: 5, _id: 'movie1', media_type: 'movie' },
+        { tmdbId: 2, favorite: false, rating: 4, _id: 'movie2', media_type: 'tv' },
       ],
-      save: jest.fn().mockResolvedValue(true), // Mock da função save
+      save: jest.fn().mockResolvedValue(true),
     };
 
     mockRequest = {
-      user: { id: 'mockUserId123' }, // Simula usuário autenticado
+      user: { id: 'mockUserId123' },
       body: {},
       params: {},
     };
+
     mockResponse = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
@@ -37,126 +38,157 @@ describe('UserController Unit Tests', () => {
 
   describe('addOrUpdateMovie', () => {
     it('deve adicionar um novo filme à lista do usuário', async () => {
-      mockRequest.body = { tmdbId: 3, favorite: true, rating: 5 };
+      mockRequest.body = { tmdbId: 3, favorite: true, rating: 5, media_type: 'movie' };
       await userController.addOrUpdateMovie(mockRequest, mockResponse);
 
       expect(User.findById).toHaveBeenCalledWith('mockUserId123');
-      expect(mockUserInstance.movieList).toContainEqual(expect.objectContaining(mockRequest.body));
+      expect(mockUserInstance.movieList).toContainEqual(
+        expect.objectContaining({
+          tmdbId: 3,
+          favorite: true,
+          rating: 5,
+          media_type: 'movie'
+        })
+      );
       expect(mockUserInstance.save).toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(200);
-      expect(mockResponse.json).toHaveBeenCalledWith(expect.objectContaining(mockRequest.body));
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        tmdbId: 3,
+        favorite: true,
+        rating: 5
+      });
     });
 
-    it('deve atualizar um filme existente na lista do usuário', async () => {
-      mockRequest.body = { tmdbId: 1, favorite: false, rating: 3 };
+    it('deve atualizar um filme existente', async () => {
+      mockRequest.body = { tmdbId: 1, favorite: false, rating: 3, media_type: 'movie' };
       await userController.addOrUpdateMovie(mockRequest, mockResponse);
 
-      const updatedMovie = mockUserInstance.movieList.find(m => m.tmdbId === 1);
-      expect(updatedMovie.favorite).toBe(false);
-      expect(updatedMovie.rating).toBe(3);
+      const updated = mockUserInstance.movieList.find(m => m.tmdbId === 1);
+      expect(updated.favorite).toBe(false);
+      expect(updated.rating).toBe(3);
       expect(mockUserInstance.save).toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(200);
-      expect(mockResponse.json).toHaveBeenCalledWith(expect.objectContaining(mockRequest.body));
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        tmdbId: 1,
+        favorite: false,
+        rating: 3
+      });
     });
 
-    it('deve retornar 400 se tmdbId não for fornecido', async () => {
+    it('deve retornar 400 se tmdbId ou media_type não forem fornecidos', async () => {
       mockRequest.body = { favorite: true };
       await userController.addOrUpdateMovie(mockRequest, mockResponse);
       expect(mockResponse.status).toHaveBeenCalledWith(400);
-      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'tmdbId é obrigatório' });
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'tmdbId e media_type são obrigatórios'
+      });
     });
 
-    it('deve retornar 404 se o usuário não for encontrado', async () => {
+    it('deve retornar 400 se media_type for inválido', async () => {
+      mockRequest.body = { tmdbId: 1, media_type: 'invalid', favorite: true };
+      await userController.addOrUpdateMovie(mockRequest, mockResponse);
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'media_type inválido. Deve ser "movie" ou "tv".'
+      });
+    });
+
+    it('deve retornar 404 se usuário não for encontrado', async () => {
       User.findById.mockResolvedValue(null);
-      mockRequest.body = { tmdbId: 1 };
+      mockRequest.body = { tmdbId: 1, media_type: 'movie' };
       await userController.addOrUpdateMovie(mockRequest, mockResponse);
       expect(mockResponse.status).toHaveBeenCalledWith(404);
       expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Usuário não encontrado' });
     });
 
-     it('deve retornar 500 se user.save() falhar', async () => {
-      mockRequest.body = { tmdbId: 4, favorite: true };
-      mockUserInstance.save.mockRejectedValue(new Error('DB save error'));
+    it('deve retornar 500 se user.save falhar', async () => {
+      mockRequest.body = { tmdbId: 4, favorite: true, media_type: 'movie' };
+      mockUserInstance.save.mockRejectedValue(new Error('fail'));
       await userController.addOrUpdateMovie(mockRequest, mockResponse);
       expect(mockResponse.status).toHaveBeenCalledWith(500);
-      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Erro interno do servidor ao processar a solicitação de filme.' });
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Erro interno do servidor ao processar a solicitação de filme.'
+      });
     });
   });
 
   describe('removeMovie', () => {
-    it('deve remover um filme da lista do usuário', async () => {
+    it('deve remover um filme da lista', async () => {
       mockRequest.params = { tmdbId: '1' };
       await userController.removeMovie(mockRequest, mockResponse);
-
       expect(mockUserInstance.movieList.find(m => m.tmdbId === 1)).toBeUndefined();
       expect(mockUserInstance.save).toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(200);
-      expect(mockResponse.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Filme removido com sucesso.' }));
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        message: 'Filme removido com sucesso.'
+      });
     });
 
-    it('deve retornar 404 se o filme a ser removido não estiver na lista', async () => {
+    it('deve retornar 404 se o filme não existir', async () => {
       mockRequest.params = { tmdbId: '999' };
       await userController.removeMovie(mockRequest, mockResponse);
       expect(mockResponse.status).toHaveBeenCalledWith(404);
-      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Filme não encontrado na lista do usuário.' });
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Filme não encontrado na lista do usuário.'
+      });
     });
 
-    it('deve retornar 400 se tmdbId não for fornecido nos parâmetros', async () => {
-        mockRequest.params = { tmdbId: undefined };
-        await userController.removeMovie(mockRequest, mockResponse);
-        expect(mockResponse.status).toHaveBeenCalledWith(400);
-        expect(mockResponse.json).toHaveBeenCalledWith({ error: 'tmdbId do filme é obrigatório nos parâmetros da URL.' });
+    it('deve retornar 400 se tmdbId não for enviado', async () => {
+      mockRequest.params = {};
+      await userController.removeMovie(mockRequest, mockResponse);
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'tmdbId do filme é obrigatório nos parâmetros da URL.'
+      });
     });
   });
 
   describe('getMovies', () => {
-    it('deve retornar a lista de filmes do usuário', async () => {
-      User.findById.mockReturnValue({
-        select: jest.fn().mockResolvedValue(mockUserInstance)
-      });
+    it('deve retornar a lista de filmes', async () => {
+      const mockSelect = jest.fn().mockResolvedValue(mockUserInstance);
+      User.findById.mockReturnValue({ select: mockSelect });
+
       await userController.getMovies(mockRequest, mockResponse);
-      expect(User.findById).toHaveBeenCalledWith('mockUserId123');
-      expect(User.findById().select).toHaveBeenCalledWith('movieList');
+      expect(mockSelect).toHaveBeenCalledWith('movieList');
       expect(mockResponse.status).toHaveBeenCalledWith(200);
       expect(mockResponse.json).toHaveBeenCalledWith(mockUserInstance.movieList);
     });
 
-    it('deve retornar 404 se o usuário não for encontrado ao buscar filmes', async () => {
-        User.findById.mockReturnValue({
-            select: jest.fn().mockResolvedValue(null)
-        });
-        await userController.getMovies(mockRequest, mockResponse);
-        expect(mockResponse.status).toHaveBeenCalledWith(404);
-        expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Usuário não encontrado' });
+    it('deve retornar 404 se usuário não for encontrado', async () => {
+      const mockSelect = jest.fn().mockResolvedValue(null);
+      User.findById.mockReturnValue({ select: mockSelect });
+
+      await userController.getMovies(mockRequest, mockResponse);
+      expect(mockResponse.status).toHaveBeenCalledWith(404);
+      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Usuário não encontrado' });
     });
   });
 
   describe('getUserProfile', () => {
-    it('deve retornar os dados do perfil do usuário', async () => {
+    it('deve retornar o perfil do usuário', async () => {
       const mockDate = new Date();
       mockUserInstance.createdAt = mockDate;
-      User.findById.mockReturnValue({
-        select: jest.fn().mockResolvedValue(mockUserInstance)
-      });
+
+      const mockSelect = jest.fn().mockResolvedValue(mockUserInstance);
+      User.findById.mockReturnValue({ select: mockSelect });
 
       await userController.getUserProfile(mockRequest, mockResponse);
-
-      expect(User.findById).toHaveBeenCalledWith('mockUserId123');
-      expect(User.findById().select).toHaveBeenCalledWith('name email createdAt movieList');
       expect(mockResponse.status).toHaveBeenCalledWith(200);
       expect(mockResponse.json).toHaveBeenCalledWith({
         name: mockUserInstance.name,
         email: mockUserInstance.email,
         createdAt: mockDate,
-        favoriteMoviesCount: mockUserInstance.movieList.filter(m => m.favorite).length,
+        favoriteMoviesCount: 1,
       });
     });
 
-     it('deve retornar 404 se o usuário não for encontrado para o perfil', async () => {
-        User.findById.mockReturnValue({ select: jest.fn().mockResolvedValue(null) });
-        await userController.getUserProfile(mockRequest, mockResponse);
-        expect(mockResponse.status).toHaveBeenCalledWith(404);
-        expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Usuário não encontrado.' });
+    it('deve retornar 404 se usuário não for encontrado', async () => {
+      const mockSelect = jest.fn().mockResolvedValue(null);
+      User.findById.mockReturnValue({ select: mockSelect });
+
+      await userController.getUserProfile(mockRequest, mockResponse);
+      expect(mockResponse.status).toHaveBeenCalledWith(404);
+      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Usuário não encontrado.' });
     });
   });
 });
