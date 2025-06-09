@@ -43,7 +43,9 @@ const register = async (name, email, password) => {
     throw err;
   }
 
-  const user = new User({ name, email, password });
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const user = new User({ name, email, password: hashedPassword });
   await user.save();
   return { message: 'Usuário registrado com sucesso' };
 };

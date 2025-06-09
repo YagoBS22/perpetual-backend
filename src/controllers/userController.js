@@ -4,18 +4,20 @@ const addOrUpdateMovie = async (req, res) => {
   const { tmdbId, rating, favorite, media_type } = req.body;
   const userId = req.user.id;
 
-  // Validação básica dos campos obrigatórios
   if (!tmdbId || !media_type) {
     return res.status(400).json({ error: 'tmdbId e media_type são obrigatórios' });
   }
 
-  // Validação do tipo de mídia
   if (!['movie', 'tv'].includes(media_type)) {
     return res.status(400).json({ error: 'media_type inválido. Deve ser "movie" ou "tv".' });
   }
 
-  // Validação do rating
-  if (typeof rating !== 'undefined' && rating !== null && rating !== '' && (rating < 0 || rating > 10)) {
+  if (
+    typeof rating !== 'undefined' &&
+    rating !== null &&
+    rating !== '' &&
+    (rating < 0 || rating > 10)
+  ) {
     return res.status(400).json({ error: 'Rating deve ser entre 0 e 10.' });
   }
 
@@ -25,7 +27,6 @@ const addOrUpdateMovie = async (req, res) => {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
 
-    // Busca o índice do filme na lista do usuário
     const movieIndex = user.movieList.findIndex(
       movie => movie.tmdbId === Number(tmdbId) && movie.media_type === media_type
     );
@@ -60,7 +61,13 @@ const addOrUpdateMovie = async (req, res) => {
       return res.status(500).json({ error: 'Erro interno do servidor ao processar a solicitação de filme.' });
     }
 
-    return res.status(200).json(savedItem);
+    // Ajuste para retornar apenas os campos enviados originalmente pelo client
+    const responseObj = {};
+    if ('tmdbId' in req.body) responseObj.tmdbId = Number(tmdbId);
+    if ('favorite' in req.body) responseObj.favorite = Boolean(favorite);
+    if ('rating' in req.body) responseObj.rating = typeof rating !== 'undefined' && rating !== null && rating !== '' ? Number(rating) : null;
+
+    return res.status(200).json(responseObj);
   } catch (error) {
     return res.status(500).json({ error: 'Erro interno do servidor ao processar a solicitação de filme.' });
   }
@@ -111,7 +118,7 @@ const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(userId).select('name email createdAt movieList');
     if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado.' });
+      return res.status(404).json({ error: 'Usuário não encontrado' });
     }
     const favoriteMoviesCount = user.movieList.filter(m => m.favorite).length;
     return res.status(200).json({
