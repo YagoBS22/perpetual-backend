@@ -118,7 +118,7 @@ const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(userId).select('name email createdAt movieList');
     if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
     }
     const favoriteMoviesCount = user.movieList.filter(m => m.favorite).length;
     return res.status(200).json({
